@@ -2,16 +2,25 @@ from numpy import array, zeros, flip
 from random import randint
 
 
+class KeyMap(dict):
+    def get_in_list(self, value):
+        for k, v in self.items():
+            if value in k:
+                return v
+        return None
+
+
 class Mapa:
     def __init__(self, y, x):
         self.size = (x, y)
-        self.grid = zeros(self.size)
+        self.size_grid = (x + 2, y + 2)
+        self.grid = zeros(self.size_grid)
 
     def mapa(self):
         return self.grid[1:-1, 1:-1]
 
     def update(self, positions):
-        self.grid = zeros(self.size)
+        self.grid = zeros(self.size_grid)
         for i, position in enumerate(positions):
             self.grid[tuple(position)] = 1
             if i == len(positions)-1:
@@ -50,15 +59,20 @@ class Cobra:
 
 
 class CobrinhaJogo:
-    def __init__(self, mapa=Mapa(7, 7), cobra=Cobra()):
+    def __init__(self, mapa=Mapa(5, 5), cobra=Cobra()):
         self.score = 0
         self.item = None
         self.mapa: Mapa = mapa
         self.cobra: Cobra = cobra
+        self.mapa.update(self.cobra.body)
         self.spawn_item()
 
+        self.keymap: KeyMap = KeyMap()
+        self.keymap[('s', 'w', 'a', 'd')] = self.cobra.change_velocity
+
     def spawn_item(self):
-        self.item: array = self.mapa.spot()[randint(0, len(self.mapa.spot())-1)]
+        if self.mapa.spot():
+            self.item: array = self.mapa.spot()[randint(0, len(self.mapa.spot())-1)]
 
     def pick_item(self):
         self.cobra.grow()
@@ -67,11 +81,15 @@ class CobrinhaJogo:
 
     def input_keyboard(self):
         choice = input().strip().lower()
-        if choice != '':
-            self.cobra.change_velocity(choice)
+        if self.keymap.get_in_list(choice):
+            self.keymap.get_in_list(choice)(choice)
+
+    def timeout(self):
+        self.cobra.move()
+        self.mapa.update(self.cobra.body)
+        print(self.mapa.mapa())
 
     def play(self):
-        self.mapa.update(self.cobra.body)
         print(self.mapa.mapa())
 
         while True:
@@ -81,21 +99,23 @@ class CobrinhaJogo:
 
             self.input_keyboard()
 
-            self.cobra.move()
-            self.mapa.update(self.cobra.body)
-            print(self.mapa.mapa())
+            self.timeout()
 
             if self.mapa.mapa().sum() != len(self.cobra.body)+1:
-                print('Game Over')
-                break
-
-            if self.score == self.mapa.size[0]*self.mapa.size[1]:
-                print('Win')
+                print(f'{"Game Over":-^100}')
+                print(f'Score: {self.score}')
+                print('-' * 100)
                 break
 
             if (self.cobra.body[-1] == self.item).all():
                 self.pick_item()
 
+            if self.score == self.mapa.size[0]*self.mapa.size[1]:
+                print(f'{"WIN":-^100}')
+                print(f'Score: {self.score}')
+                print('-' * 100)
+                break
 
-game = CobrinhaJogo(Mapa(8, 8), Cobra())
+
+game = CobrinhaJogo()
 game.play()
